@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boodschappenlijst</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Achtergrondverloop gebaseerd op image_18cf04.png */
+        body {
+            background: linear-gradient(135deg, #56c4ff 0%, #7C92F1 50%, #9c5eff 100%);
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Subtiele animaties voor lijstitems */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .item-animate {
+            animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Aangepaste scrollbar voor lange lijsten */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.55);
+        }
+    </style>
+</head>
+<body class="font-sans text-[#1A1A1A] antialiased selection:bg-[#9B6EF3] selection:text-white h-[100dvh] overflow-hidden flex flex-col items-center justify-center p-4 sm:p-6">
+
+    <!-- Hoofdcontainer (mobiel-vriendelijk met vaste hoogte en interne scroll voor onbeperkt aantal items) -->
+    <main class="w-full max-w-[460px] h-full max-h-[860px] bg-white/15 backdrop-blur-md border border-white/25 rounded-[32px] shadow-2xl shadow-black/10 p-5 sm:p-6 flex flex-col overflow-hidden">
+        
+        <!-- Top Header & Deelknop op dezelfde regel -->
+        <header class="w-full relative flex items-center justify-center mb-5 shrink-0 min-h-[48px]">
+            <!-- Witte titel (gecentreerd zonder kader) -->
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-white drop-shadow-sm">
+                Boodschappenlijst
+            </h1>
+
+            <!-- Deel / Kopieer knop (rechts op dezelfde regel) -->
+            <button 
+                id="share-btn" 
+                type="button"
+                title="Kopieer lijst naar klembord"
+                class="absolute right-0 w-11 h-11 shrink-0 rounded-full bg-white text-[#1A1A1A] shadow-md shadow-black/5 hover:scale-105 active:scale-95 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-white/80"
+                aria-label="Lijst kopiëren en delen"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#7C92F1]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+            </button>
+        </header>
+
+        <!-- Invoerformulier voor nieuwe producten (onbeperkt toevoegen) -->
+        <form id="add-form" novalidate class="w-full bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-lg shadow-black/5 mb-4 shrink-0 flex items-center gap-2 transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-white">
+            <input 
+                type="text" 
+                id="product-input" 
+                placeholder="Product toevoegen..." 
+                autocomplete="off"
+                class="flex-1 min-w-0 bg-transparent pl-3 pr-1 py-2 text-[15px] font-medium text-[#1A1A1A] placeholder-gray-400 focus:outline-none"
+            >
+            <div class="h-6 w-[1px] bg-gray-200"></div>
+            <input 
+                type="text" 
+                id="amount-input" 
+                placeholder="Aantal" 
+                autocomplete="off"
+                class="w-20 sm:w-24 bg-transparent px-2 py-2 text-[14px] font-medium text-right text-[#6B7280] placeholder-gray-400 focus:outline-none focus:text-[#1A1A1A]"
+            >
+            <button 
+                type="submit" 
+                id="add-btn"
+                aria-label="Product toevoegen"
+                class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-[#56c4ff] to-[#9c5eff] text-white font-bold text-xl shadow-md shadow-[#7C92F1]/30 hover:opacity-95 active:scale-95 transition-all flex items-center justify-center focus:outline-none cursor-pointer"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+            </button>
+        </form>
+
+        <!-- Scrollbare container voor een onbeperkt aantal boodschappen -->
+        <div id="list-scroll-container" class="w-full flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 scroll-smooth">
+            <!-- Lijst met boodschappen (zonder categorieën en zonder iconen) -->
+            <ul id="shopping-list" class="w-full flex flex-col gap-2.5 pb-2">
+                <!-- Items worden hier dynamisch door JavaScript geplaatst -->
+            </ul>
+
+            <!-- Lege staat melding -->
+            <div id="empty-state" class="hidden w-full bg-white/20 backdrop-blur-sm border border-white/30 rounded-2xl p-8 text-center text-white mt-2">
+                <p class="font-semibold text-base mb-1">Je lijstje is helemaal leeg</p>
+                <p class="text-sm text-white/85">Typ hierboven een product om te beginnen.</p>
+            </div>
+        </div>
+
+        <!-- Onderste actieknoppen (vastgezet onderaan de app-container) -->
+        <div id="bottom-actions" class="hidden w-full flex items-center justify-start pt-3 mt-2 border-t border-white/20 shrink-0 text-xs sm:text-sm">
+            <button 
+                id="clear-checked-btn" 
+                type="button"
+                class="bg-white/20 hover:bg-white/30 active:scale-95 text-white font-medium px-3.5 py-2 rounded-full backdrop-blur-sm transition-all"
+            >
+                Afgevinkte wissen (<span id="checked-count">0</span>)
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Toast Notificatie (vervangt alert() voor feedback bij kopiëren/wissen) -->
+    <div 
+        id="toast" 
+        role="status"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-20 opacity-0 pointer-events-none bg-[#1A1A1A] text-white text-sm font-medium px-5 py-3 rounded-full shadow-xl transition-all duration-300 z-50 flex items-center gap-2 whitespace-nowrap"
+    >
+        <span class="w-2 h-2 rounded-full bg-gradient-to-r from-[#48C6EF] to-[#9B6EF3]"></span>
+        <span id="toast-message">Gekopieerd naar klembord!</span>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Start met een volledig lege lijst
+            const STORAGE_KEY = 'boodschappenlijst_items_v2';
+
+            // DOM-elementen
+            const addForm = document.getElementById('add-form');
+            const addBtn = document.getElementById('add-btn');
+            const productInput = document.getElementById('product-input');
+            const amountInput = document.getElementById('amount-input');
+            const listScrollContainer = document.getElementById('list-scroll-container');
+            const shoppingListEl = document.getElementById('shopping-list');
+            const emptyStateEl = document.getElementById('empty-state');
+            const bottomActionsEl = document.getElementById('bottom-actions');
+            const clearCheckedBtn = document.getElementById('clear-checked-btn');
+            const checkedCountEl = document.getElementById('checked-count');
+            const shareBtn = document.getElementById('share-btn');
+            const toastEl = document.getElementById('toast');
+            const toastMessageEl = document.getElementById('toast-message');
+
+            // Laad opgeslagen items uit localStorage of begin volledig leeg
+            let items = [];
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                items = saved ? JSON.parse(saved) : [];
+            } catch (e) {
+                items = [];
+            }
+
+            let toastTimeout;
+
+            // Sla items op in localStorage
+            function saveItems() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+                } catch (e) {
+                    console.warn('Opslaan in localStorage niet mogelijk:', e);
+                }
+            }
+
+            // Toon melding onderaan het scherm
+            function showToast(message) {
+                toastMessageEl.textContent = message;
+                toastEl.classList.remove('translate-y-20', 'opacity-0');
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    toastEl.classList.add('translate-y-20', 'opacity-0');
+                }, 2400);
+            }
+
+            // Voeg een nieuw product toe aan de lijst
+            function handleAddSubmit(e) {
+                if (e) e.preventDefault();
+
+                const name = productInput.value.trim();
+                const amount = amountInput.value.trim();
+
+                if (!name) {
+                    productInput.focus();
+                    return;
+                }
+
+                const newItem = {
+                    id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
+                    name: name,
+                    amount: amount,
+                    checked: false
+                };
+
+                // Voeg bovenaan de lijst toe
+                items.unshift(newItem);
+                saveItems();
+                renderList();
+
+                // Maak invoervelden leeg en focus terug op productnaam
+                productInput.value = '';
+                amountInput.value = '';
+                productInput.focus();
+
+                // Scroll soepel naar boven zodat het nieuwe item direct zichtbaar is
+                listScrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            // Vink een product aan of uit
+            function toggleItem(id) {
+                items = items.map((item) =>
+                    item.id === id ? { ...item, checked: !item.checked } : item
+                );
+                saveItems();
+                renderList();
+            }
+
+            // Verwijder een product uit de lijst met vloeiende animatie
+            function deleteItem(id, listItemEl) {
+                if (listItemEl) {
+                    listItemEl.style.transition = 'all 0.2s ease';
+                    listItemEl.style.opacity = '0';
+                    listItemEl.style.transform = 'translateX(16px)';
+                    setTimeout(() => {
+                        items = items.filter((item) => item.id !== id);
+                        saveItems();
+                        renderList();
+                    }, 180);
+                } else {
+                    items = items.filter((item) => item.id !== id);
+                    saveItems();
+                    renderList();
+                }
+            }
+
+            // Render de volledige boodschappenlijst
+            function renderList() {
+                shoppingListEl.innerHTML = '';
+
+                if (items.length === 0) {
+                    emptyStateEl.classList.remove('hidden');
+                } else {
+                    emptyStateEl.classList.add('hidden');
+                }
+
+                items.forEach((item) => {
+                    const li = document.createElement('li');
+                    li.className = `item-animate group flex items-center justify-between bg-white px-4 py-3.5 rounded-2xl shadow-sm shadow-black/5 transition-all select-none cursor-pointer ${
+                        item.checked ? 'opacity-60' : 'hover:shadow-md'
+                    }`;
+
+                    // Linkerzijde: ronde checkbox + productnaam
+                    const leftWrapper = document.createElement('div');
+                    leftWrapper.className = 'flex items-center gap-3.5 min-w-0 flex-1 pr-2';
+
+                    const checkbox = document.createElement('button');
+                    checkbox.type = 'button';
+                    checkbox.setAttribute('aria-label', item.checked ? 'Markeer als niet gekocht' : 'Markeer als gekocht');
+                    checkbox.className = `w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
+                        item.checked
+                            ? 'bg-gradient-to-tr from-[#56c4ff] to-[#9c5eff] border-transparent text-white'
+                            : 'border-gray-300 bg-white group-hover:border-[#7C92F1]'
+                    }`;
+
+                    if (item.checked) {
+                        checkbox.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        `;
+                    }
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = item.name;
+                    nameSpan.className = `text-[15px] font-semibold truncate transition-all ${
+                        item.checked ? 'line-through text-gray-400' : 'text-[#1A1A1A]'
+                    }`;
+
+                    leftWrapper.appendChild(checkbox);
+                    leftWrapper.appendChild(nameSpan);
+
+                    // Rechterzijde: hoeveelheid + verwijderkruisje
+                    const rightWrapper = document.createElement('div');
+                    rightWrapper.className = 'flex items-center gap-2.5 shrink-0';
+
+                    if (item.amount) {
+                        const amountSpan = document.createElement('span');
+                        amountSpan.textContent = item.amount;
+                        amountSpan.className = `text-[13px] font-medium ${
+                            item.checked ? 'text-gray-300' : 'text-[#6B7280]'
+                        }`;
+                        rightWrapper.appendChild(amountSpan);
+                    }
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.title = 'Verwijder product';
+                    deleteBtn.setAttribute('aria-label', `${item.name} verwijderen`);
+                    deleteBtn.className = 'w-8 h-8 rounded-full bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 active:scale-90 transition-all flex items-center justify-center';
+                    deleteBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    `;
+
+                    // Klik op de rij vinkt het item af
+                    li.addEventListener('click', () => toggleItem(item.id));
+
+                    // Klik op het kruisje verwijdert het item direct zonder af te vinken
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteItem(item.id, li);
+                    });
+
+                    rightWrapper.appendChild(deleteBtn);
+                    li.appendChild(leftWrapper);
+                    li.appendChild(rightWrapper);
+                    shoppingListEl.appendChild(li);
+                });
+
+                updateCounters();
+            }
+
+            // Werk onderste afvink-knop bij (zonder de verwijderde '0 te gaan' tekst)
+            function updateCounters() {
+                const totalChecked = items.filter((item) => item.checked).length;
+
+                if (totalChecked > 0) {
+                    bottomActionsEl.classList.remove('hidden');
+                    checkedCountEl.textContent = totalChecked;
+                } else {
+                    bottomActionsEl.classList.add('hidden');
+                }
+            }
+
+            // Koppel zowel form-submit (Enter-toets) als directe klik op de plus-knop
+            addForm.addEventListener('submit', handleAddSubmit);
+            addBtn.addEventListener('click', handleAddSubmit);
+
+            // Alle afgevinkte items wissen
+            clearCheckedBtn.addEventListener('click', () => {
+                items = items.filter((item) => !item.checked);
+                saveItems();
+                renderList();
+                showToast('Afgevinkte items gewist');
+            });
+
+            // Lijst kopiëren naar klembord via de deelknop
+            shareBtn.addEventListener('click', () => {
+                if (items.length === 0) {
+                    showToast('De lijst is nog leeg');
+                    return;
+                }
+
+                const formattedText = items
+                    .map((item) => `${item.checked ? '✓' : '•'} ${item.name}${item.amount ? ` (${item.amount})` : ''}`)
+                    .join('\n');
+
+                const textarea = document.createElement('textarea');
+                textarea.value = `Boodschappenlijst:\n${formattedText}`;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                try {
+                    document.execCommand('copy');
+                    showToast('Boodschappenlijst gekopieerd!');
+                } catch (err) {
+                    showToast('Kopiëren mislukt');
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            });
+
+            // Initiële weergave
+            renderList();
+        });
+    </script>
+</body>
+</html>
